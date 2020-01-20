@@ -1,0 +1,2 @@
+# searchcred
+Search default credentials
