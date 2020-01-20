@@ -1,0 +1,367 @@
+#!/bin/bash
+#================================================================
+# HEADER
+#================================================================
+#% SYNOPSIS
+#+    searchcred [-hvlceiu] term1 [term2] [term3]
+#%
+#% DESCRIPTION
+#%    This script allow you to search for default credentials
+#%
+#% OPTIONS
+#%    -h, --help                    Print this help
+#%    -v, --version                 Print script information
+#%    -l, --list                    Output pure credentials list (default is ascii table)
+#%    -c, --case                    Perform a case sensitive search, default is case-insensitive
+#%    -e, --exact                   Perform an exact match
+#%    -i, --include                 Include credentials in search
+#%    -u, --update                  Update credentials database
+#%
+#% EXAMPLES
+#%    searchcred tomcat
+#%    searchcred -l -e Apache Tomcat
+#%
+#================================================================
+#- IMPLEMENTATION
+#-    version         searchcred 0.1
+#-    author          thomfre
+#-    copyright       Copyright (c) thomfre
+#-    license         GPL-2.0
+#-    based on        offensive-security/exploitdb (https://github.com/offensive-security/exploitdb)
+#-
+#================================================================
+#  HISTORY
+#     2020-01-20 : thomfre : Script creation
+#
+#================================================================
+# END_OF_HEADER
+#================================================================
+
+#============================
+#  VARIABLES
+#============================
+
+VERSION=0.1
+SCRIPT_HEADSIZE=$(head -200 ${0} | grep -n "^# END_OF_HEADER" | cut -f1 -d:)
+CSV_PATH="/usr/share/searchcred/"
+
+## Default options
+CLIPBOARD=0
+COLOUR=1
+EXACT=0
+SEARCHCREDS=0
+GETPATH=0
+LIST=0
+MIRROR=0
+OVERFLOW=0
+SCASE=0
+VERBOSE=0
+XML=0
+COLOUR_TAG=""
+TAGS=""
+SEARCH=""
+EXCLUDE=""
+CASE_TAG_GREP="-i"
+CASE_TAG_FGREP="tolower"
+AWK_SEARCH=""
+COLOUR_OFF_GREP=
+COLOUR_ON_GREP=
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+WHITE='\033[0;37m'
+RESET='\033[0m'
+
+## Set LANG variable to avoid illegal byte sequence errors
+LANG=C
+
+#============================
+#  FUNCTIONS
+#============================
+
+usage() {
+  printf "Usage: "
+  head -${SCRIPT_HEADSIZE:-99} ${0} | grep -e "^#+" | sed -e "s/^#+[ ]*//g" -e "s/\${SCRIPT_NAME}/${SCRIPT_NAME}/g"
+  exit 0
+}
+usagefull() {
+  head -${SCRIPT_HEADSIZE:-99} ${0} | grep -e "^#[%+-]" | sed -e "s/^#[%+-]//g" -e "s/\${SCRIPT_NAME}/${SCRIPT_NAME}/g"
+  exit 0
+}
+scriptinfo() {
+  head -${SCRIPT_HEADSIZE:-99} ${0} | grep -e "^#-" | sed -e "s/^#-//g" -e "s/\${SCRIPT_NAME}/${SCRIPT_NAME}/g"
+  exit 0
+}
+
+## Printing dotted lines in the correct manner
+function drawline()
+{
+  printf "%0.s-" $( eval echo {1..$(( COL1 + 1 ))} )
+  echo -n " "
+  printf "%0.s-" $( eval echo {1..$(( COL2 - 1 ))} )
+  echo ""
+}
+
+function updateCreds()
+{
+  echo -e "${BLUE}[*]${RESET} Updating credentials database"
+
+  echo -e "${BLUE}[*]${RESET} Fetching default credentials from SecLists"
+
+  mkdir -p ${CSV_PATH}
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/default-passwords.csv -O ${CSV_PATH}temp-dpw.csv
+  awk -F ',' '{print $1";"$2";"$3}' ${CSV_PATH}temp-dpw.csv > ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}temp-dpw.csv
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-tmc.txt
+  awk -F '[:]' '{print "Apache Tomcat;"$1";"$2}' ${CSV_PATH}tmp-tmc.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-tmc.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/mssql-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-mssql.txt
+  awk -F '[:]' '{print "MS SQL;"$1";"$2}' ${CSV_PATH}tmp-mssql.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-mssql.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/mysql-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-mysql.txt
+  awk -F '[:]' '{print "MySQL;"$1";"$2}' ${CSV_PATH}tmp-mysql.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-mysql.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/db2-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-db2.txt
+  awk -F '[:]' '{print "IBM Db2;"$1";"$2}' ${CSV_PATH}tmp-db2.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-db2.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/oracle-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-oracle.txt
+  awk -F '[:]' '{print "Oracle;"$1";"$2}' ${CSV_PATH}tmp-oracle.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-oracle.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/postgres-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-pgsql.txt
+  awk -F '[:]' '{print "PostgreSQL;"$1";"$2}' ${CSV_PATH}tmp-pgsql.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-pgsql.txt
+
+  wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/vnc-betterdefaultpasslist.txt -O ${CSV_PATH}tmp-vnc.txt
+  awk -F '[:]' '{print "VNC;;"$1}' ${CSV_PATH}tmp-vnc.txt >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-vnc.txt
+
+  echo -e "${BLUE}[*]${RESET} Removing duplicates"
+
+  cat ${CSV_PATH}temp-credentials.csv | sort -u > ${CSV_PATH}credentials.csv
+  rm ${CSV_PATH}temp-credentials.csv
+
+  echo -e "${GREEN}[+]${RESET} Done updating credentials database"
+  exit 0;
+}
+
+function buildterms()
+{
+  tag_in="${1}"
+
+  ## If we are to use colour ("--colour"), add the values to search for between "or"
+  if [[ "${COLOUR}" -eq 1 ]]; then
+    [[ "${COLOUR_TAG}" ]] && COLOUR_TAG="${COLOUR_TAG}|"
+    COLOUR_TAG="${COLOUR_TAG}${tag_in}"
+  fi
+  ## Search both title AND credentials
+  if [[ "${SEARCHCREDS}" -eq 1 ]]; then
+    ## Search command for each term (with case sensitive flag, "-c")
+    SEARCH="${SEARCH} | grep ${COLOUR_OFF_GREP} -F ${CASE_TAG_GREP} \"${tag_in}\""
+  ## Search just the title, NOT the credentials
+  else
+    ## If there is already a value, prepend text to get ready
+    [[ "${AWK_SEARCH}" ]] && AWK_SEARCH="${AWK_SEARCH}/ && ${CASE_TAG_FGREP}(\$1) ~ /"
+
+    ## Escape any slashes
+    tag_in="$( echo ${tag_in} | sed 's_/_\\/_g' )"
+
+    ## Case sensitive ("-c")?
+    if [[ "${SCASE}" -eq 1 ]]; then
+      AWK_SEARCH="${AWK_SEARCH}${tag_in}"
+    else
+      AWK_SEARCH="${AWK_SEARCH}$( echo ${tag_in} | tr '[:upper:]' '[:lower:]' )"
+    fi
+  fi
+}
+
+function findresults()
+{
+  file_in="${1}"
+  name_in="${2}"
+
+  ## LIST require full options
+  if [[ "${LIST}" -eq 1 ]]; then
+    ## Read in (title, user, path) separated between commas
+    SEARCH="awk -F '[;]' '{print \$1\";\"\$2\";\"\$3}' \"${file_in}\""
+  else
+    ## Read in (title, user, path)
+    SEARCH="awk -F '[;]' '{print \$1\";\"\$2\";\"\$3}' \"${file_in}\""
+  fi
+
+
+  ## EXACT search command ("-e")?
+  if [[ "${EXACT}" -eq 1 ]]; then
+   buildterms "${TAGS}"
+  ## or AND search command?
+  else
+    ## For each term
+    for TAG in ${TAGS}; do
+      buildterms "${TAG}"
+    done
+  fi
+
+  ## If we are NOT to use the path name ("-t"/"-e")
+  [[ "${SEARCHCREDS}" -eq 0 ]] && SEARCH="${SEARCH} | awk -F '[;]' '${CASE_TAG_FGREP}(\$1) ~ /${AWK_SEARCH}/ {print}'"
+
+  ## If we are to use colour ("--colour"), add the value here
+  if [[ "${COLOUR_TAG}" ]] && [[ "${LIST}" -eq 0 ]]; then
+    COLOUR_TAG="grep ${COLOUR_ON_GREP} -iE \"${COLOUR_TAG}|$\""
+  fi
+
+  ## Dynamically set column widths to the current screen size
+  COL2=$(( $( tput cols ) / 2 ))
+  COL1=$(( $( tput cols ) - COL2 - 1 ))
+
+  ## Search, format, and print results (--overflow)
+  if [[ "${OVERFLOW}" -eq 1 ]]; then
+    FORMAT_COL1=${COL1}
+  else
+    FORMAT_COL1=${COL1}'.'${COL1}
+  fi
+
+  ## Maximum length COL2 can be
+  FORMAT_COL2=$(( ${COL2} - 2 ))
+
+  ## Strip un-wanted values
+  SEARCH="${SEARCH} | sed 's/\"//g'"
+
+  ## Remove any terms not wanted from the search
+  [[ "${EXCLUDE}" ]] && SEARCH="${SEARCH} | grep -vEi '${EXCLUDE}'"
+
+  ## Magic search Fu
+  ## Print LIST format (full options) ("--LIST")?
+  if [[ "${LIST}" -eq 1 ]]; then
+    OUTPUT="$( eval ${SEARCH} \
+        | awk -F ';' '{ printf "%s:%s\\n", $2, $3 }' )"
+
+    OUTPUT="$( echo -e ${OUTPUT} \
+        | sort -u \
+        | sed '/^[[:space:]]*$/d' \
+        | sed '$ s/;$//' )"
+
+  ## Default view
+  else
+    OUTPUT="$( eval ${SEARCH} \
+      | awk -F ';' '{ printf " %-'${FORMAT_COL1}'s| %.'${FORMAT_COL2}'s:%.'${FORMAT_COL2}'s\n", $1, $2, $3 }' \
+      | sort )"
+  fi
+
+  ## Display colour highlights ("--colour")?
+  if [[ "${COLOUR_TAG}" ]] && [[ "${LIST}" -eq 0 ]]; then
+    [[ "${OUTPUT}" ]] && OUTPUT=$( echo -e "${OUTPUT}" | eval ${COLOUR_TAG} )
+  fi
+}
+
+function printresults()
+{
+  title_in="${1}"
+  path_in="${2}"
+  LIST_title="$(echo ${title_in} | tr /a-z/ /A-Z/)"
+
+
+  ## Print ASCII table only if not LIST ("--LIST")
+  if [[ "${LIST}" -eq 0 ]]; then
+    drawline
+    printf "%-${COL1}s %s" " ${title_in}s for"
+    echo "| Credentials"
+    drawline
+  fi
+
+  ## Show content
+  [[ "${OUTPUT}" ]] && echo "${OUTPUT}"
+
+  ## Print footer if not in LIST ("--LIST")
+  if [[ "${LIST}" -eq 0 ]]; then
+    drawline
+  fi
+}
+
+#============================
+#  MAIN SCRIPT
+#============================
+
+## Check if our grep supports --color
+if grep --help 2>&1 | grep "[-]-color" >/dev/null 2>&1 ; then
+  COLOUR_OFF_GREP="--color=never"
+  COLOUR_ON_GREP="--color=always"
+fi
+
+## Check for empty arguments
+if [[ $# -eq 0 ]]; then
+  usage >&2
+fi
+
+## Parse arguments
+ARGS="-"
+for param in "$@"; do
+  if [[ "${param}" == "--help" ]]; then
+    usagefull >&2
+  elif [[ "${param}" == "--version" ]]; then
+    scriptinfo >&2
+  elif [[ "${param}" == "--list" ]]; then
+    LIST=1
+  elif [[ "${param}" == "--case" ]]; then
+    SCASE=1
+  elif [[ "${param}" == "--exact" ]]; then
+    EXACT=1
+  elif [[ "${param}" == "--include" ]]; then
+    SEARCHCREDS=1
+  elif [[ "${param}" == "--update" ]]; then
+    updateCreds
+  else
+    if [[ "${param:0:1}" == "-" ]]; then
+      ARGS=${ARGS}${param:1}
+      shift
+      continue
+    fi
+    TAGS="${TAGS} ${param//\`/_}"
+  fi
+done
+
+while getopts "hvlceiu" arg "${ARGS}"; do
+  if [[ "${arg}" = "?" ]]; then
+    usagefull >&2
+  fi
+  case ${arg} in
+  h) usagefull >&2 ;;
+  v) scriptinfo >&2 ;;
+  l) LIST=1 ;;
+  c) SCASE=1 ;;
+  e) EXACT=1 ;;
+  i) SEARCHCREDS=1 ;;
+  u) updateCreds ;;
+  esac
+  shift $((OPTIND - 1))
+done
+
+## Remove leading space
+TAGS="$( echo ${TAGS} | sed -e 's/^[[:space:]]//' )"
+
+files_array+=("${CSV_PATH}credentials.csv")
+name_array+=("Credential")
+
+## Check for files_*.csv
+arraylength="${#files_array[@]}"
+for (( i=0; i<${arraylength}; i++ )); do
+  ## Search
+  findresults "${files_array[${i}]}" "${name_array[${i}]}"
+  ## Print results if in LIST ("--LIST") or if there are any results
+  if ([[ "${LIST}" -eq 1 ]] || [[ "${OUTPUT}" ]]); then
+    printresults "${name_array[${i}]}"
+  ## Summary if NOT LIST ("--LIST")
+  elif [[ "${LIST}" -eq 0 ]]; then
+    echo "${name_array[${i}]}s: No Result"
+  fi
+  ## Reset
+  COLOUR_TAG=""
+done
+
+## Done
+exit 0
