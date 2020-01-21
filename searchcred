@@ -142,9 +142,14 @@ function updateCreds()
   awk -F '[:]' '{print "VNC;;"$1}' ${CSV_PATH}tmp-vnc.txt >> ${CSV_PATH}temp-credentials.csv
   rm ${CSV_PATH}tmp-vnc.txt
 
+  echo -e "${BLUE}[*]${RESET} Fetching default credentials from searchcred"
+  wget -q https://raw.githubusercontent.com/thomfre/searchcred/master/credentials.csv -O ${CSV_PATH}tmp-creds.csv
+  cat ${CSV_PATH}tmp-creds.csv >> ${CSV_PATH}temp-credentials.csv
+  rm ${CSV_PATH}tmp-creds.csv
+
   echo -e "${BLUE}[*]${RESET} Removing duplicates"
 
-  cat ${CSV_PATH}temp-credentials.csv | sort -u > ${CSV_PATH}credentials.csv
+  cat ${CSV_PATH}temp-credentials.csv | sed -re 's/\s$//' | sort -u > ${CSV_PATH}credentials.csv
   rm ${CSV_PATH}temp-credentials.csv
 
   echo -e "${GREEN}[+]${RESET} Done updating credentials database"
