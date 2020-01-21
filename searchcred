@@ -23,7 +23,7 @@
 #%
 #================================================================
 #- IMPLEMENTATION
-#-    version         searchcred 0.1
+#-    version         searchcred 0.2
 #-    author          thomfre
 #-    copyright       Copyright (c) thomfre
 #-    license         GPL-2.0
@@ -32,6 +32,7 @@
 #================================================================
 #  HISTORY
 #     2020-01-20 : thomfre : Script creation
+#     2020-01-21 : thomfre : Added own list of additional credentials, improved duplicate filtering
 #
 #================================================================
 # END_OF_HEADER

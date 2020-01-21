@@ -6,6 +6,10 @@ SearchCred is a utility that allows you to search for default credentials.
 
 Clone this repository, and simply run `install.sh`. This will copy searchcred to `/usr/bin/` and run the update command. The update command downloads default credentials and store them in `/usr/share/searchcred/`.
 
+## Updating
+
+To update, just do `git pull` and run `install.sh` again.
+
 ## Usage
 
 ```text
