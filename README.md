@@ -1,5 +1,10 @@
 # SearchCred
 
+[![GitHub Issues](https://img.shields.io/github/issues/thomfre/searchcred)](https://github.com/thomfre/searchcred/issues)
+[![Forks](https://img.shields.io/github/forks/thomfre/searchcred)](https://github.com/thomfre/searchcred/network/members)
+[![GitHub Stars](https://img.shields.io/github/stars/thomfre/searchcred)](https://github.com/thomfre/searchcred/stargazers)
+[![License](https://img.shields.io/github/license/thomfre/searchcred)](https://github.com/thomfre/searchcred/blob/master/LICENSE)
+
 SearchCred is a utility that allows you to search for default credentials.
 
 ## Installation
